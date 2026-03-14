@@ -1,0 +1,23 @@
+{
+  "name": "pro_sklad",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/utka0047/pro_sklad.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/utka0047/pro_sklad/issues"
+  },
+  "homepage": "https://github.com/utka0047/pro_sklad#readme",
+  "dependencies": {
+    "docx": "^9.6.1"
+  }
+}
