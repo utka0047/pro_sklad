@@ -3,4 +3,4 @@
 __pycache__
 .claude
 .env
-.env.example
+node_modules
