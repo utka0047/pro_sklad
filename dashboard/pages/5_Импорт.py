@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import csv
-from io import StringIO, BytesIO
+from io import StringIO
 
 st.set_page_config(page_title="Импорт товаров | Торнус Склад", page_icon="📥", layout="wide")
 
@@ -12,6 +12,7 @@ if not st.session_state.get("authenticated"):
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import api_client as api
+from barcode_utils import generate_barcodes_pdf
 
 with st.sidebar:
     st.markdown("## 📦 Торнус Склад")
@@ -23,6 +24,7 @@ with st.sidebar:
     st.page_link("pages/3_Движения.py", label="Движения", icon="🔄")
     st.page_link("pages/4_Аналитика.py", label="Аналитика", icon="📈")
     st.page_link("pages/5_Импорт.py", label="Импорт", icon="📥")
+    st.page_link("pages/6_Штрих-коды.py", label="Штрих-коды", icon="🔖")
     st.divider()
     if st.button("Выйти", use_container_width=True):
         st.session_state.authenticated = False
@@ -39,17 +41,9 @@ with tab_upload:
     st.info("""
     **Поддерживаемые форматы:** CSV (текстовый формат с разделителями).
 
-    **Требуемые колонки:**
-    - `name` — название товара
-    - `sku` — артикул (уникальный идентификатор)
+    **Требуемые колонки:** `name`, `sku`
 
-    **Опциональные колонки:**
-    - `category` — категория товара
-    - `unit` — единица измерения (по умолчанию: шт)
-    - `price` — цена в рублях
-    - `description` — описание товара
-    - `min_stock` — минимальный остаток для заказа
-    - `current_stock` — текущий остаток на складе
+    **Опциональные:** `category`, `unit`, `price`, `description`, `min_stock`, `current_stock`
     """)
 
     uploaded_file = st.file_uploader("Выберите CSV файл", type="csv")
@@ -81,9 +75,7 @@ with tab_upload:
                     with st.spinner("Импортирование товаров..."):
                         try:
                             result = api.import_products_csv(content, uploaded_file.name, on_duplicate)
-
                             st.success("✅ Импорт завершён!")
-
                             col1, col2, col3 = st.columns(3)
                             col1.metric("✨ Создано", result.get("created", 0))
                             col2.metric("🔄 Обновлено", result.get("updated", 0))
@@ -96,20 +88,51 @@ with tab_upload:
                         except Exception as e:
                             st.error(f"❌ Ошибка импорта: {e}")
 
+            # ── Штрих-коды из загруженного файла ─────────────────────────────
+            st.divider()
+            st.subheader("🔖 Штрих-коды из этого файла")
+
+            has_sku = "sku" in df.columns
+            has_name = "name" in df.columns
+
+            if not has_sku:
+                st.warning("В файле нет колонки `sku` — штрих-коды недоступны.")
+            else:
+                items_from_csv = []
+                for _, row in df.iterrows():
+                    sku = str(row.get("sku", "")).strip()
+                    name = str(row.get("name", "")).strip() if has_name else sku
+                    if sku:
+                        items_from_csv.append({"sku": sku, "name": name})
+
+                st.write(f"Найдено товаров с SKU: **{len(items_from_csv)}**")
+
+                if items_from_csv and st.button("🔖 Скачать штрих-коды из CSV", use_container_width=True):
+                    with st.spinner("Генерация PDF..."):
+                        try:
+                            pdf_bytes = generate_barcodes_pdf(items_from_csv)
+                            st.download_button(
+                                label="⬇️ Скачать PDF со штрих-кодами",
+                                data=pdf_bytes,
+                                file_name="barcodes_from_csv.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                            )
+                        except Exception as e:
+                            st.error(f"Ошибка генерации: {e}")
+
         except Exception as e:
             st.error(f"Ошибка при чтении файла: {e}")
 
 # ── Шаблон ────────────────────────────────────────────────────────────────────
 with tab_template:
     st.subheader("Скачать шаблон CSV")
-
     st.write("Используйте этот шаблон для подготовки файла импорта.")
 
-    # Создаём пример CSV
     example_data = {
         "name": ["Картофель", "Вода (0.5л)", "Молоко (1л)", "Сахар (1кг)"],
         "sku": ["POTATO-001", "WATER-500", "MILK-1000", "SUGAR-1000"],
-        "category": ["Овощи", "Напитки", "Молочные", "Сухофрукты"],
+        "category": ["Овощи", "Напитки", "Молочные", "Бакалея"],
         "unit": ["кг", "шт", "л", "кг"],
         "price": [50.00, 30.00, 85.50, 120.00],
         "description": ["Картофель сорт Беллароза", None, "Молоко коровье 3.6%", "Сахар белый кристаллический"],
@@ -120,14 +143,12 @@ with tab_template:
     df_example = pd.DataFrame(example_data)
     st.dataframe(df_example, use_container_width=True, hide_index=True)
 
-    # Конвертируем в CSV
     csv_buffer = StringIO()
     df_example.to_csv(csv_buffer, index=False, encoding='utf-8')
-    csv_content = csv_buffer.getvalue()
 
     st.download_button(
-        label="⬇️ Скачать шаблон (template.csv)",
-        data=csv_content,
+        label="⬇️ Скачать шаблон (tornus_template.csv)",
+        data=csv_buffer.getvalue(),
         file_name="tornus_template.csv",
         mime="text/csv",
         use_container_width=True,
@@ -135,22 +156,18 @@ with tab_template:
 
     st.divider()
     st.subheader("📋 Правила заполнения")
+    st.markdown("""
+1. **name** (обязательно): Название товара, 1–255 символов
+2. **sku** (обязательно): Артикул, уникальный в базе, 1–100 символов
+3. **category** (опционально): Категория товара
+4. **unit** (опционально): Единица измерения (кг, л, шт). По умолчанию: `шт`
+5. **price** (опционально): Цена в рублях, число с **точкой**: `150.50`
+6. **description** (опционально): Описание товара
+7. **min_stock** (опционально): Минимальный остаток для заказа. По умолчанию: `0`
+8. **current_stock** (опционально): Текущий остаток на складе. По умолчанию: `0`
 
-    rules = """
-    1. **name** (обязательно): Название товара, 1-255 символов
-    2. **sku** (обязательно): Артикул, уникальный в базе, 1-100 символов
-    3. **category** (опционально): Категория товара
-    4. **unit** (опционально): Единица измерения (кг, л, шт, упак и т.д.). По умолчанию: `шт`
-    5. **price** (опционально): Цена в рублях, число с точкой (не запятой). Например: `150.50`
-    6. **description** (опционально): Описание товара
-    7. **min_stock** (опционально): Минимальный остаток для заказа. По умолчанию: `0`
-    8. **current_stock** (опционально): Текущий остаток на складе. По умолчанию: `0`
-
-    **Важно:**
-    - Используйте кодировку **UTF-8** (без BOM)
-    - Разделитель полей: запятая (`,`)
-    - Числовые значения используйте с точкой как разделитель (напр. `150.50`)
-    - Пустые значения или отсутствующие колонки будут заполнены по умолчанию
-    """
-
-    st.markdown(rules)
+**Важно:**
+- Кодировка **UTF-8** (без BOM)
+- Разделитель: запятая `,`
+- Десятичный разделитель: точка `.`
+    """)

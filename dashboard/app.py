@@ -48,6 +48,7 @@ with st.sidebar:
     st.page_link("pages/3_Движения.py", label="Движения", icon="🔄")
     st.page_link("pages/4_Аналитика.py", label="Аналитика", icon="📈")
     st.page_link("pages/5_Импорт.py", label="Импорт", icon="📥")
+    st.page_link("pages/6_Штрих-коды.py", label="Штрих-коды", icon="🔖")
     st.divider()
     if st.button("Выйти", use_container_width=True):
         st.session_state.authenticated = False
@@ -68,5 +69,6 @@ st.markdown(
     | **🔄 Движения** | Журнал движений: приход, расход, перемещение, инвентаризация |
     | **📈 Аналитика** | Графики, топ-товары, динамика оборота |
     | **📥 Импорт** | Загрузка товаров из CSV файлов |
+    | **🔖 Штрих-коды** | Генерация PDF с штрих-кодами (все / выборочно) |
     """
 )
