@@ -47,6 +47,7 @@ with st.sidebar:
     st.page_link("pages/2_Товары.py", label="Товары", icon="📋")
     st.page_link("pages/3_Движения.py", label="Движения", icon="🔄")
     st.page_link("pages/4_Аналитика.py", label="Аналитика", icon="📈")
+    st.page_link("pages/5_Импорт.py", label="Импорт", icon="📥")
     st.divider()
     if st.button("Выйти", use_container_width=True):
         st.session_state.authenticated = False
@@ -66,5 +67,6 @@ st.markdown(
     | **📋 Товары** | Справочник товаров: просмотр, добавление, редактирование |
     | **🔄 Движения** | Журнал движений: приход, расход, перемещение, инвентаризация |
     | **📈 Аналитика** | Графики, топ-товары, динамика оборота |
+    | **📥 Импорт** | Загрузка товаров из CSV файлов |
     """
 )

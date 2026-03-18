@@ -32,6 +32,14 @@ def _delete(path: str):
         r.raise_for_status()
 
 
+def _post_file(path: str, file_data: bytes, filename: str, params: dict = None):
+    with httpx.Client(base_url=API_URL, timeout=TIMEOUT) as client:
+        files = {"file": (filename, file_data, "text/csv")}
+        r = client.post(path, files=files, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
 # ── Products ──────────────────────────────────────────────────────────────────
 
 def get_products(category=None, low_stock_only=False):
@@ -57,6 +65,10 @@ def update_product(product_id: int, data: dict):
 
 def delete_product(product_id: int):
     _delete(f"/products/{product_id}")
+
+
+def import_products_csv(file_data: bytes, filename: str, on_duplicate: str = "skip"):
+    return _post_file("/products/import/csv", file_data, filename, {"on_duplicate": on_duplicate})
 
 
 # ── Movements ────────────────────────────────────────────────────────────────

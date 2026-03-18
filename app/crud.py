@@ -58,6 +58,62 @@ def delete_product(db: Session, product_id: int):
     return True
 
 
+def bulk_import_products(db: Session, products_data: list[dict],
+                         on_duplicate: str = "skip") -> dict:
+    """
+    Bulk import products from list of dicts.
+    on_duplicate: 'skip' (не создавать существующие), 'update' (обновить), 'error' (ошибка)
+    Returns: {'created': count, 'updated': count, 'skipped': count, 'errors': []}
+    """
+    result = {'created': 0, 'updated': 0, 'skipped': 0, 'errors': []}
+
+    for idx, data in enumerate(products_data, 1):
+        try:
+            sku = data.get('sku', '')
+            if not sku or not sku.strip():
+                result['errors'].append({'row': idx, 'sku': sku, 'error': 'SKU не может быть пусто'})
+                continue
+
+            existing = get_product_by_sku(db, sku.strip())
+
+            if existing:
+                if on_duplicate == "skip":
+                    result['skipped'] += 1
+                    continue
+                elif on_duplicate == "update":
+                    for key in ['name', 'category', 'unit', 'price', 'description', 'min_stock']:
+                        if key in data:
+                            setattr(existing, key, data[key])
+                    existing.updated_at = datetime.utcnow()
+                    db.commit()
+                    db.refresh(existing)
+                    result['updated'] += 1
+                elif on_duplicate == "error":
+                    result['errors'].append({'row': idx, 'sku': sku, 'error': 'Товар с таким SKU уже существует'})
+                    continue
+            else:
+                product = Product(
+                    name=data.get('name', ''),
+                    sku=sku.strip(),
+                    category=data.get('category'),
+                    unit=data.get('unit', 'шт'),
+                    price=Decimal(str(data.get('price', 0))),
+                    description=data.get('description'),
+                    min_stock=Decimal(str(data.get('min_stock', 0))),
+                    current_stock=Decimal(str(data.get('current_stock', 0))),
+                )
+                db.add(product)
+                db.commit()
+                db.refresh(product)
+                result['created'] += 1
+
+        except Exception as e:
+            db.rollback()
+            result['errors'].append({'row': idx, 'sku': data.get('sku'), 'error': str(e)})
+
+    return result
+
+
 def get_categories(db: Session):
     rows = db.query(Product.category).distinct().filter(Product.category.isnot(None)).all()
     return [r[0] for r in rows]
