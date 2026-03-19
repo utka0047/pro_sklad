@@ -15,21 +15,9 @@ import api_client as api
 from barcode_utils import generate_barcodes_pdf
 
 with st.sidebar:
-    st.markdown("## 📦 Торнус Склад")
-    st.caption("Система учёта склада")
-    st.divider()
-    st.page_link("app.py", label="Главная", icon="🏠")
-    st.page_link("pages/1_Сводка.py", label="Сводка", icon="📊")
-    st.page_link("pages/2_Товары.py", label="Товары", icon="📋")
-    st.page_link("pages/3_Движения.py", label="Движения", icon="🔄")
-    st.page_link("pages/4_Аналитика.py", label="Аналитика", icon="📈")
-    st.page_link("pages/5_Импорт.py", label="Импорт", icon="📥")
-    st.page_link("pages/6_Штрих-коды.py", label="Штрих-коды", icon="🔖")
-    st.divider()
     if st.button("Выйти", use_container_width=True):
         st.session_state.authenticated = False
         st.rerun()
-
 st.title("📥 Импорт товаров")
 
 tab_upload, tab_template = st.tabs(["Загрузить файл", "Скачать шаблон"])
