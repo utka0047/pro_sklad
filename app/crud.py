@@ -1,7 +1,7 @@
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import func, cast, Date
+from sqlalchemy import func, cast, Date, case
 from sqlalchemy.orm import Session
 
 from app.models import Product, StockMovement
@@ -272,15 +272,15 @@ def get_top_products(db: Session, limit: int = 10):
         Product.category,
         Product.unit,
         func.sum(
-            func.case((StockMovement.movement_type == "OUT", StockMovement.quantity), else_=0)
+            case((StockMovement.movement_type == "OUT", StockMovement.quantity), else_=0)
         ).label("total_out"),
         func.sum(
-            func.case((StockMovement.movement_type == "IN", StockMovement.quantity), else_=0)
+            case((StockMovement.movement_type == "IN", StockMovement.quantity), else_=0)
         ).label("total_in"),
     ).join(StockMovement, Product.id == StockMovement.product_id, isouter=True
     ).group_by(Product.id, Product.name, Product.sku, Product.category, Product.unit
     ).order_by(func.sum(
-        func.case((StockMovement.movement_type == "OUT", StockMovement.quantity), else_=0)
+        case((StockMovement.movement_type == "OUT", StockMovement.quantity), else_=0)
     ).desc()).limit(limit).all()
 
     return [
